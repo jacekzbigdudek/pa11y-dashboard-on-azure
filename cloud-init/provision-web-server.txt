@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# -------------- brokedb nginx config -----------------
+sudo echo Script started > /tmp/script.log
+
+FILE="/tmp/index.html"
+sudo /bin/cat <<EOF >$FILE
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head><title>Here you are Papy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><style>
+.videoWrapper { position: absolute;top: 0;left: 0;width: 100%;height: 100%;background-image: linear-gradient(to top, #86377b 20%, #27273c 80%);}
+.videoWrapper iframe {  top: 10;left: 50;width: 100%;height: 100%;}
+.centered {position: absolute;top: 10%;left: 35%;}</style>
+</head>
+<body>
+<div class="videoWrapper">
+<div class="centered"><H1 style="color:#D83623;font-family: Impact, Charcoal, sans-serif;text-shadow: 1px 2px #FFFFF;">Welcome to The <b> Azure Loco Party :D !!!</b></h1> </div>
+<iframe src="https://player.vimeo.com/video/343579787?autoplay=1&color=ff0179&title=0&byline=0&portrait=0" width="1024" height="768" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+</div>
+</body>
+</html>
+EOF
+
+sudo apt  --assume-yes install nginx
+sudo ufw allow 'Nginx HTTP'
+
+# Why is this line commented out?
+#sudo systemctl start nginx
+
+# Maybe "enable" is the same thing or updated nomenclature?
+sudo systemctl enable nginx
+
+sudo systemctl status nginx
+# sudo cp /usr/share/nginx/html/index.html /usr/share/nginx/html/index.original.html  
+sudo cat $FILE > /var/www/html/index.html
+
+
+# --------------- pa11y config ------------------------
+
+# Probably not, but we might have to install wget first:
+# sudo apt-get update
+# sudo apt-get install wget
+
+# Then, I think just download and extract stuff in home directory.
+# cd ~
+
+# URL to download version 4 of mongodb server archive:
+# https://repo.mongodb.org/apt/ubuntu/dists/xenial/mongodb-org/4.4/multiverse/binary-amd64/mongodb-org-server_4.4.14_amd64.deb
+
+# URL to download version 14 of node.js archive:
+# https://nodejs.org/download/release/v14.19.3/node-v14.19.3-linux-arm64.tar.gz
+
+# Use dpkg utility to extract a .deb archive:
+# dpkg-deb -xv <file.deb> </path/to/where/extract>
+
+# Use tar to extract a tar.gz archive:
+# tar -xf <archive.tar.gz> --directory </home/linuxize/files>
+
+

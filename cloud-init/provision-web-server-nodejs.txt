@@ -1,0 +1,70 @@
+#!/bin/sh
+
+FILE="/tmp/app.js"
+
+# Write to temporary file:
+sudo /bin/cat <<EOF >$FILE
+const http = require('http');
+
+//This is the loopback IP address also referred to as localhost:
+const hostname = '127.0.0.1';
+
+// Default port for http traffic:
+const port = 3000;
+
+const server = http.createServer((req, res) => {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('Hello World');
+});
+
+server.listen(port, hostname, () => {
+    console.log(`Server running at http://${hostname}:${port}/`);
+});
+EOF
+
+sudo apt install bmon slurm tcptrack nethogs
+sudo apt install nodejs
+
+# ufw is a command for configuring firewall settings:
+sudo ufw allow 'nodejs HTTP'
+
+# The nginx provisioning ran systemctl commands to communicate with systemd.
+#sudo systemctl enable nginx
+#sudo systemctl status nginx
+# I'm not sure if running a web server under nodejs needs to do something similar.
+
+# Try running it manually, without systemd:
+sudo /usr/bin/node $FILE &
+
+
+
+
+
+
+
+
+
+
+# --------------- pa11y config ------------------------
+
+# Probably not, but we might have to install wget first:
+# sudo apt-get update
+# sudo apt-get install wget
+
+# Then, I think just download and extract stuff in home directory.
+# cd ~
+
+# URL to download version 4 of mongodb server archive:
+# https://repo.mongodb.org/apt/ubuntu/dists/xenial/mongodb-org/4.4/multiverse/binary-amd64/mongodb-org-server_4.4.14_amd64.deb
+
+# URL to download version 14 of node.js archive:
+# https://nodejs.org/download/release/v14.19.3/node-v14.19.3-linux-arm64.tar.gz
+
+# Use dpkg utility to extract a .deb archive:
+# dpkg-deb -xv <file.deb> </path/to/where/extract>
+
+# Use tar to extract a tar.gz archive:
+# tar -xf <archive.tar.gz> --directory </home/linuxize/files>
+
+  
