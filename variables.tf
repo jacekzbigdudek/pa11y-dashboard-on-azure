@@ -1,6 +1,6 @@
 variable "prefix" {
     description = "What to prefix all resource names with in this deployment."
-    default = "jzd"
+    default = "itpd"
     type = string
 }
 
@@ -10,12 +10,19 @@ variable "location" {
     type = string
 }
 
+# Cannot use this one yet as not every occurrence can be parameterized.
+# variable "login" {
+#     description = "Login name for VM administrator account."
+#     default = "adminuser"
+#     type = string
+# }
+
 variable "public_key_file_name" {
     description = "Public key to use when provisioning the vm."
-    default = "~/JZD/ssh-keys/pa11y-web-server-vm-key.pub"
+    default = "./ssh-keys/pa11y-web-server-vm-key.pub"
 }
 
 variable "user_data" {
-    description = "Bash script that installs and runs the web-server."
-    default = "./cloud-init/provision-web-server.txt"
+    description = "cloud-config file for post-deployment provisioning."
+    default = "./cloud-init/cloud-config.yaml"
 }

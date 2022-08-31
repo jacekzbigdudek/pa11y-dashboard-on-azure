@@ -1,0 +1,254 @@
+#cloud-config
+
+# Location of cloud-init log file containing any emitted standard output: 
+# /var/log/cloud-init-output.log
+
+# Location (on the VM) of cloud-init configuration files based on this cloud-config file:
+# /var/lib/cloud/instance/
+
+# Three suggestions for command to validate cloud-config file:
+# sudo cloud-init schema --system
+# sudo cloud-init schema --config-file <path-to-config-file>
+# cloud-init devel schema --config-file <path-to-config-file>
+
+# systemd command to synch modified config files:
+# systemctl daemon-reload (or something like that)
+
+# We might wish to personalize the VM for easier administration:
+# Import vim config file, select a nicer shell, install other useful command lines utilities, etc.
+ 
+
+
+# Problem with this directive. It messes up ssh connectivity for adminuser.
+# users:
+#   # System users to run mongo and pa11y services:
+#   - name: mongodb
+#     shell: /bin/bash
+#     no-create-home: True
+#     lock-passwd: True
+# 
+#   - name: pa11y
+#     shell: /bin/bash
+#     no-create-home: True
+#     lock-passwd: True
+
+packages:
+  # mongodb dependencies:
+  - libcurl4
+  - openssl
+  - liblzma5
+  
+  # nodejs and pa11y dependencies: 
+  - ca-certificates
+  - fonts-liberation
+  - libappindicator3-1
+  - libasound2
+  - libatk-bridge2.0-0
+  - libatk1.0-0
+  - libc6
+  - libcairo2
+  - libcups2
+  - libdbus-1-3
+  - libexpat1
+  - libfontconfig1
+  - libgbm1
+  - libgcc1
+  - libglib2.0-0
+  - libgtk-3-0
+  - libnspr4
+  - libnss3
+  - libpango-1.0-0
+  - libpangocairo-1.0-0
+  - libstdc++6
+  - libx11-6
+  - libx11-xcb1
+  - libxcb1
+  - libxcomposite1
+  - libxcursor1
+  - libxdamage1
+  - libxext6
+  - libxfixes3
+  - libxi6
+  - libxrandr2
+  - libxrender1
+  - libxss1
+  - libxtst6
+  - lsb-release
+  - wget
+  - xdg-utils
+
+  # reverse proxy:
+  # - apache2
+
+write_files:  
+  # Items in this directive have an optional owner attribute, but its behaviour is buggy.
+  # Create mongodb data directory. The file is empty.
+  - path: /var/lib/mongodb/stub
+ 
+  # mongodb log directory and file. The file is initially empty.
+  - path: /var/log/mongodb/mongodb.log
+
+  # mongodb systemd service unit definition:
+  - path: /etc/systemd/system/mongodb.service 
+    content: |
+        [Unit]
+        Description=An object/document-oriented database
+        After=network.target
+
+        [Service]
+        User=adminuser
+        Group=adminuser
+
+        # Shouldn't this be an absolute path?:
+        RuntimeDirectory=mongodb 
+        RuntimeDirectoryMode=0755
+
+        # And I don't know what this setting does:
+        EnvironmentFile=-/etc/default/mongodb 
+
+        Environment=CONF=/etc/mongodb.conf
+        Environment=SOCKETPATH=/run/mongodb
+
+        ExecStart=/usr/bin/mongod --unixSocketPrefix=${SOCKETPATH} --config ${CONF} $DAEMON_OPTS
+        # Currently we create a symbolic link from /usr/bin/mongod to actual location of the binary. 
+        Restart=on-failure
+
+        LimitFSIZE=infinity
+        LimitCPU=infinity
+        LimitAS=infinity
+        LimitNOFILE=64000
+        LimitNPROC=64000
+
+        [Install]
+        WantedBy=multi-user.target 
+
+  # mongodb configuration file: 
+  - path: /etc/mongodb.conf
+    content: |
+        storage:
+            dbPath: "/var/lib/mongodb"
+            journal:
+                enabled: true
+
+        systemLog:
+            destination: file
+            path: "/var/log/mongodb/mongodb.log"
+            logAppend: true
+
+        net:
+            bindIp: localhost
+            port: 27017
+
+  # pa11y systemd service unit definition:
+  - path: /etc/systemd/system/pa11y.service
+    content: |
+        [Unit]
+        Description=Web service for testing accessibility standards compliance
+        After=mongodb.service
+
+        [Service]
+        # Need to run as root user for now to have access to port 80:
+        #User=adminuser
+        #Group=adminuser
+        EnvironmentFile=/home/adminuser/pa11y-dashboard/pa11y.conf
+        ExecStart=/usr/bin/node /home/adminuser/pa11y-dashboard/index.js
+        Type=simple
+        Restart=on-failure
+
+        [Install]
+        WantedBy=multi-user.target
+
+  # We will need a configuration file for apache to run it as reverse proxy. 
+  # (Replacement for /etc/apache2/sites-available/000-default.conf)
+  - path: /home/adminuser/000-default-replacement.conf
+    content: |
+        <VirtualHost *:80>
+          ProxyPreserveHost On
+          ProxyPass / localhost:8080/
+          ProxyPassReverse / localhost:8080/
+        </VirtualHost>
+
+runcmd:
+  # Commands specified in this directive are executed sequentially.
+  # All standard output will be written to cloud-init-output.log.
+  
+  - cd /home/adminuser
+  
+  # mongodb:
+  # Download tarball package of appropriate version of mongodb: 
+  - wget https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2004-4.4.16.tgz
+
+  # Extract files from tarball, simplify directory name:
+  - tar -zxvf mongodb-linux-x86_64-ubuntu2004-4.4.16.tgz 
+  - mv mongodb-linux-x86_64-ubuntu2004-4.4.16 mongodb
+
+  # Change OS limit on number of open file descriptors per process:
+  - ulimit -n 64001
+
+  # Create a symbolic link to mongo binary:
+  - sudo ln -s /home/adminuser/mongodb/bin/mongod /usr/bin/mongod
+
+  # Change file permissions for mongodb system user:
+  # (adminuser should exist and files should be uploaded at this point)
+  - sudo chown adminuser:adminuser /var/lib/mongodb 
+  - sudo chown adminuser:adminuser /var/log/mongodb/mongodb.log
+   
+  # Enable mongodb.service:
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable mongodb.service
+
+  # nodejs:
+  # Download nodejs deb package source configuration script:
+  - curl -fsSL https://deb.nodesource.com/setup_14.x -o nodesource_setup_v14.sh
+
+  # Run the script to update package sources:
+  - sudo bash nodesource_setup_v14.sh
+
+  # Install node from new source. This command is interactive.
+  - sudo apt-get install -y nodejs
+
+  # pa11y-dashboard:
+  # Clone git pa11y-dashboard git repository:
+  - git clone https://github.com/pa11y/pa11y-dashboard.git
+
+  # Use node package manager to download pa11y dependencies:
+  - cd /home/adminuser/pa11y-dashboard
+  - npm install
+
+  # Create environment file for pa11y:
+  # Currently we run the application server the public ip directly.
+  - echo HOST=$(dig +short myip.opendns.com @resolver1.opendns.com) > pa11y.conf
+  # Another way to get public ip address: curl -4 icanhazip.com
+  - echo PORT=80 >> pa11y.conf
+  - sudo chown adminuser:adminuser /home/adminuser/pa11y-dashboard/pa11y.conf
+
+  # Enable pa11y.service:
+  - sudo systemctl enable pa11y.service
+
+
+  # apache as reverse proxy:
+  # Currently it conflicts with pa11y running on public_ip:80, so disable it:
+  # - sudo systemctl disable apache2.service
+
+  # apache as reverse proxy:
+  # - sudo a2enmod proxy 
+  #- sudo a2enmod proxy_http
+
+  # Set up firewall:
+  # - sudo ufw allow OpenSSH
+  # - sudo ufw allow "Apache Full"
+  # - sudo ufw enable
+
+
+# Reboot computer to start new systemd service units without race conditions.
+power_state:
+    timeout: 0
+    delay: "now"
+    message: "Rebooting to start mongodb and pa11y."
+    mode: reboot
+
+
+# We might have to set up a systemd timer unit between mongodb and pa11y service units to give some time
+# for mongo database to initialize itself. Some people had problems with service units relying on mongo
+# database coming up too quickly (after mongodb.service was initialized but before the database was usable).
+

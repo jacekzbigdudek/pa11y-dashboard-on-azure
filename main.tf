@@ -5,7 +5,7 @@ terraform {
             version = "~> 3.0.2"
         }
     }
-    # Required version of terraform itself:
+    # Required version of terraform:
     required_version = ">= 1.1.0"
 }
 
@@ -34,7 +34,7 @@ resource "azurerm_subnet" "subnet1" {
 
 resource "azurerm_public_ip" "pip" {
     name                = "${var.prefix}-pip"
-    domain_name_label   = "jzd-pa11y-dashboard"
+    domain_name_label   = "${var.prefix}-pa11y-dashboard"
     resource_group_name = azurerm_resource_group.main.name
     location            = var.location
     allocation_method   = "Static"
@@ -53,58 +53,36 @@ resource "azurerm_network_interface" "main" {
     }
 }
 
-# resource "azurerm_network_interface" "internal" {
-#     name                = "${var.prefix}-nic2"
-#     resource_group_name = azurerm_resource_group.main.name
-#     location            = var.location
-# 
-#     ip_configuration {
-#         name                          = "internal"
-#         subnet_id                     = azurerm_subnet.subnet1.id
-#         private_ip_address_allocation = "Dynamic"
-#     }
-# }
-
 resource "azurerm_network_security_group" "nsg1" {
     name                = "network_security_group_1"
     location            = azurerm_resource_group.main.location
     resource_group_name = azurerm_resource_group.main.name
     
-    # security_rule {
-    #     access                     = "Allow"
-    #     direction                  = "Inbound"
-    #     name                       = "tls"
-    #     priority                   = 100
-    #     protocol                   = "Tcp"
-    #     source_port_range          = "*"
-    #     source_address_prefix      = "*"
-    #     destination_port_range     = "443"
-    #     destination_address_prefix = azurerm_network_interface.main.private_ip_address
-    # }
-    
     security_rule {
-        name                       = "Egress"
-        priority                   = 100
-        direction                  = "Outbound"
+        name                       = "ssh_access"
         access                     = "Allow"
-        protocol                   = "Tcp"
-        source_port_range          = "*"
-        destination_port_range     = "*"
-        source_address_prefix      = "*"
-        destination_address_prefix = "*"
-    }
-    security_rule {
-        name                       = "Inbound HTTP access"
-        priority                   = 100
         direction                  = "Inbound"
-        access                     = "Allow"
         protocol                   = "Tcp"
-        source_port_ranges          = ["22","80","443","3389"]
-        destination_port_ranges     = ["22","80","443","3389"]
+        priority                   = 100
+        source_port_range          = "*"
+        destination_port_range     = "22"
         source_address_prefix      = "*"
         destination_address_prefix = "*"
-        description                = "RDP-HTTP-HTTPS ingress traffic" 
     }
+
+    security_rule {
+        name                       = "http_access"
+        access                     = "Allow"
+        direction                  = "Inbound"
+        protocol                   = "Tcp"
+        priority                   = 200
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    # We may need a security rule to allow inbound HTTPS traffic on port 443.
 }
 
 resource "azurerm_subnet_network_security_group_association" "nsg_for_subnet1" {
@@ -117,18 +95,28 @@ resource "azurerm_linux_virtual_machine" "main" {
     location                        = var.location     
     resource_group_name             = azurerm_resource_group.main.name
     network_interface_ids           = [azurerm_network_interface.main.id]
-    size                            = "Standard_F2"
+
+    # Virtual machine size must be compatible with kernel image to be used.
+    # v2 VMs in azure use a hypervisor (program that does the virtualizing) 
+    # version that may not be compatible with some older versions of the 
+    # linux kernel.
+    size                            = "Standard_DS1_v2"
+
     computer_name                   = "jzd"
-    #   admin_username                  = "adminuser"
-    #   admin_password                  = "ILom4j72LAw773JGQrng"
-    disable_password_authentication = true #false
+    admin_username                  = "adminuser"
+    disable_password_authentication = true 
     provision_vm_agent              = true
+
     custom_data                     = base64encode ("${file(var.user_data)}")
+    # A copy of this file can be referenced at this location on the new VM:
+    # /var/lib/cloud/instances/<unique-instance-identifier>/user-data.txt
 
     source_image_reference {
         publisher = "Canonical"
-        offer     = "UbuntuServer"
-        sku       = "16.04-LTS"
+        # Offer and sku names are non-standard for latest LTS Ubuntu Server.
+        # Use Azure CLI to list images: az vm image list --publisher Canonical
+        offer     = "0001-com-ubuntu-server-focal"
+        sku       = "20_04-lts-gen2" 
         version   = "latest"
     }
 
@@ -137,10 +125,9 @@ resource "azurerm_linux_virtual_machine" "main" {
         caching              = "ReadWrite"
     }
 
-    admin_ss_key {
+    admin_ssh_key {
         username = "adminuser"
-        public_key = file("${var.public_key_file_name.pub}")
+        public_key = file("${var.public_key_file_name}")
     }
 }
-       
 

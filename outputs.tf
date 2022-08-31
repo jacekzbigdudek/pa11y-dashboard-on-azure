@@ -1,14 +1,25 @@
-output "instance_id" {
-    description = " id of created instances. "
-    value       = azurerm_linux_virtual_machine.main.id
+output "URL" {
+    description = "URL for the pa11y-dashboard web service."
+    value       = azurerm_public_ip.pip.fqdn
 }
 
-output "private_ip" {
-    description = "Private IPs of created instances. "
-    value       = azurerm_linux_virtual_machine.main.private_ip_address
-}
-
-output "public_ip" {
-    description = "Public IPs of created instances. "
+output "ip" {
+    description = "Public IP of created VM instance."
     value       = azurerm_public_ip.pip.ip_address
 }
+
+output "login" {
+    description = "Login name of administrator account."
+    value       = azurerm_linux_virtual_machine.main.admin_username
+}
+
+# output "instance_id" {
+#     description = "id of created VM instance."
+#     value       = azurerm_linux_virtual_machine.main.id
+# }
+
+# output "private_ip" {
+#     description = "Private IP of created instance."
+#     value       = azurerm_linux_virtual_machine.main.private_ip_address
+# }
+

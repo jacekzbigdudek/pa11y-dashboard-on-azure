@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+  <html>
+    <head>
+      <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+      <h3>Instructions for how to deploy pa11y-dashboard to an Azure subscription.</h3>
+      <ol>
+        <li>
+        Open a powershell window.
+        </li>
+
+        <li>
+        Clone project repository to local machine: <span class="command">git clone &lturl-to-project-repository&gt</span>
+        </li>
+
+        <li>
+        Download and install the <a href=https://docs.microsoft.com/en-us/cli/azure/>Azure CLI tool</a>. 
+        </li>
+
+        <li>
+        Download the <a href=https://www.terraform.io/downloads>Terraform binary</a>. 
+        </li>
+
+        <li>
+        Log into your Azure account using CLI: <span class="command">az login</span>
+        </li>
+
+        <li>
+        Set current subscription for the account that was logged into: 
+            az account set --subscription "&lsaquo subscription-id&rsaquo"
+        </li>
+
+        <li>
+        Create a service principal and save credential information to a file for use in next step: <span class="command"> az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/&lsaquosubscription-id&rsaquo" &rsaquo credentials.ps1 </span>
+        </li>
+
+        <li>
+        Set environment variables to hold credentials:
+        Save the service principal credentials information to file as per step.
+        Then edit the file into a powershell script. Run in powershell session to set environment variables. 
+            
+        There are other ways of having terraform.exe (and packer?) authenticate itself, but Hashicorp recommends using environment variables to hold the service principal credentials.
+        </li>
+
+        <li>
+        Run terraform apply in main project directory.
+        </li>
+
+      </ol>
+    </body>
+  </html>
+
+<!--
+Some To Dos:
+============
+Internalize and systematize (to a reasonable extent) the process of setting up an SSH connection to VM(s) created by your IaC project.
+    (a) Creating public-private key pairs.
+    (b) Passing public key to IaC deployment as argument.
+    (c) Setting up cloud networking components that enables SSH connections.
+    (c) Storing private key on our home/work computers.
+
+Documentation:
+==============
+
+Service description
+    Overview of how to deploy and manage pa11y-dashboard 
+    You can have a collection of tasks with a dependency graph.
+In detail
+    Project repository
+        Potential future branches (VM scale set, kubernetes implementations)
+        Latest executables will be contained directly in the repo for now?
+    Azure account 
+        Azure cloud account
+        Downloading and using Azure CLI command line tool
+        Defining subscription, resource group, security principal
+        Use the notes above for some of this.
+    Terraform
+        Terraform executables and preliminaries
+            Downloading provider extensions
+            Setting up environment variables for access to azure account.
+            Basic commands for deploying a terraform project
+        Resource types that you need permissions to create in azure account.
+        Basic semantics of main.tf file
+        How to provide parameters for terraform deployment.
+            machine name
+            admin user name and public ssh key
+            desired DNS domain name for the machine? or at least a suffix.
+            any paramaters we may want to use to pre-configure pa11y-dashboard
+        Note on terraform outputs. 
+            Maybe confirm the key input parameters.
+            What info is needed that is not known until deployment?
+        cloud-init/cloud-config
+            Anything the deployer needs to know?
+            Software components:
+                mongodb (ver ?)
+                    systemd service unit definition
+                nodejs (ver ?)
+                pa11y git repo
+                    systemd service unit definition
+                nginx or apache? or some other server running as a proxy server
+                    we'll get a standard package, with service unit definition
+-->                
+
